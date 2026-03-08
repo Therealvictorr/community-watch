@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -49,15 +48,20 @@ const reportTypeConfig: Record<ReportType, { label: string; icon: string; color:
 
 export function MapView({ reports, sightings, user }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<L.Map | null>(null)
+  const mapInstanceRef = useRef<any>(null)
   const [selectedReport, setSelectedReport] = useState<MapReport | null>(null)
   const [showList, setShowList] = useState(false)
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return
+    let map: any
 
-    // Initialize map centered on a default location (can be updated based on user location)
-    const map = L.map(mapRef.current).setView([40.7128, -74.006], 11)
+    const initMap = async () => {
+      if (!mapRef.current || mapInstanceRef.current) return
+
+      const L = await import('leaflet')
+
+      // Initialize map centered on a default location (can be updated based on user location)
+      map = L.map(mapRef.current).setView([40.7128, -74.006], 11)
     mapInstanceRef.current = map
 
     // Add tile layer
@@ -132,8 +136,14 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
       map.fitBounds(bounds, { padding: [50, 50] })
     }
 
+    }
+
+    initMap()
+
     return () => {
-      map.remove()
+      if (map) {
+        map.remove()
+      }
       mapInstanceRef.current = null
     }
   }, [reports, sightings])
