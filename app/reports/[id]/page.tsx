@@ -7,30 +7,32 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { mockReports, mockSightings } from '@/lib/mock-data'
+import { buildVconObject } from '@/lib/vcon'
+import { VconViewer } from '@/components/vcon-viewer'
+import { AiAnalysis } from '@/components/ai-analysis'
 
 export default async function ReportDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   if (!isSupabaseConfigured()) {
     const report = mockReports.find((item) => item.id === id)
-    if (!report) {
-      notFound()
-    }
+    if (!report) notFound()
+
+    const sightings = mockSightings.filter((s) => s.report_id === report!.id)
+    const vcon = buildVconObject({ report: report!, sightings, attachments: [] })
 
     return (
       <div className="min-h-screen bg-background">
         <Header user={null} />
-        <main className="container mx-auto px-4 py-8 space-y-6">
-          <ReportDetailsContent report={report} sightings={mockSightings.filter((s) => s.report_id === report.id)} />
+        <main className="container mx-auto px-4 py-8 space-y-6 max-w-4xl">
+          <ReportDetailsContent report={report!} sightings={sightings} vcon={vcon} />
         </main>
       </div>
     )
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const { data: report, error: reportError } = await supabase
     .from('reports')
@@ -40,18 +42,16 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
 
   if (reportError || !report) {
     const mockReport = mockReports.find((item) => item.id === id)
-    if (!mockReport) {
-      notFound()
-    }
+    if (!mockReport) notFound()
+
+    const sightings = mockSightings.filter((s) => s.report_id === mockReport!.id)
+    const vcon = buildVconObject({ report: mockReport!, sightings, attachments: [] })
 
     return (
       <div className="min-h-screen bg-background">
         <Header user={user} />
-        <main className="container mx-auto px-4 py-8 space-y-6">
-          <ReportDetailsContent
-            report={mockReport}
-            sightings={mockSightings.filter((sighting) => sighting.report_id === mockReport.id)}
-          />
+        <main className="container mx-auto px-4 py-8 space-y-6 max-w-4xl">
+          <ReportDetailsContent report={mockReport!} sightings={sightings} vcon={vcon} />
         </main>
       </div>
     )
@@ -59,30 +59,37 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
 
   const { data: sightings } = await supabase
     .from('sightings')
-    .select('*, reporter:profiles!reporter_id(id, full_name)')
+    .select('*, reporter:profiles(id, full_name)')
     .eq('report_id', id)
     .order('sighted_at', { ascending: false })
+
+  const vcon = buildVconObject({
+    report,
+    sightings: sightings || [],
+    attachments: report.attachments || [],
+  })
 
   return (
     <div className="min-h-screen bg-background">
       <Header user={user} />
-      <main className="container mx-auto px-4 py-8 space-y-6">
-        <ReportDetailsContent report={report} sightings={sightings || []} />
+      <main className="container mx-auto px-4 py-8 space-y-6 max-w-4xl">
+        <ReportDetailsContent report={report} sightings={sightings || []} vcon={vcon} />
       </main>
     </div>
   )
 }
 
-function ReportDetailsContent({ report, sightings }: { report: any; sightings: any[] }) {
+function ReportDetailsContent({ report, sightings, vcon }: { report: any; sightings: any[]; vcon: any }) {
   return (
     <>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">{report.subject}</h1>
-          <p className="text-muted-foreground">{report.last_seen_location || 'Location unknown'}</p>
-          <p className="text-xs text-muted-foreground mt-1">vCon UUID: {report.vcon_uuid || report.id}</p>
+          <p className="text-muted-foreground mt-1">{report.last_seen_location || 'Location unknown'}</p>
+          <p className="text-xs text-muted-foreground mt-1 font-mono">vCon UUID: {report.vcon_uuid || report.id}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Badge>{report.status}</Badge>
           <Button asChild variant="secondary" size="sm">
             <Link href={`/api/reports/${report.id}/vcon`} target="_blank">
@@ -92,6 +99,7 @@ function ReportDetailsContent({ report, sightings }: { report: any; sightings: a
         </div>
       </div>
 
+      {/* Report Details */}
       <Card>
         <CardHeader>
           <CardTitle>Report Details</CardTitle>
@@ -104,6 +112,7 @@ function ReportDetailsContent({ report, sightings }: { report: any; sightings: a
         </CardContent>
       </Card>
 
+      {/* Sightings */}
       <Card>
         <CardHeader>
           <CardTitle>Sightings ({sightings.length})</CardTitle>
@@ -121,6 +130,12 @@ function ReportDetailsContent({ report, sightings }: { report: any; sightings: a
           )}
         </CardContent>
       </Card>
+
+      {/* vCon Viewer */}
+      <VconViewer vcon={vcon} reportType={report.report_type} />
+
+      {/* AI Analysis */}
+      <AiAnalysis reportId={report.id} />
 
       <Button asChild variant="outline">
         <Link href="/">Back to reports</Link>
