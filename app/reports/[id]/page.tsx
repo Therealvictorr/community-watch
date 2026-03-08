@@ -32,13 +32,13 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: report } = await supabase
+  const { data: report, error: reportError } = await supabase
     .from('reports')
-    .select('*, attachments:report_attachments(*), reporter:profiles!reporter_id(id, full_name)')
+    .select('*, attachments:report_attachments(*), reporter:profiles(id, full_name)')
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
-  if (!report) {
+  if (reportError || !report) {
     const mockReport = mockReports.find((item) => item.id === id)
     if (!mockReport) {
       notFound()

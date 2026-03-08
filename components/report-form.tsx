@@ -67,63 +67,74 @@ export function ReportForm({ userId }: ReportFormProps) {
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    // Build person or item details based on report type
-    let personDetails: PersonDetails | undefined
-    let itemDetails: ItemDetails | undefined
+      // Ensure the user profile exists (auto-creates if missing)
+      await supabase
+        .from('profiles')
+        .upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })
 
-    if (reportType === 'missing_child') {
-      personDetails = {
-        name: personName,
-        age: personAge ? parseInt(personAge) : undefined,
-        gender: personGender || undefined,
-        height: personHeight || undefined,
-        weight: personWeight || undefined,
-        hair_color: personHairColor || undefined,
-        eye_color: personEyeColor || undefined,
-        clothing_description: personClothing || undefined,
-        distinguishing_features: personFeatures || undefined,
-        relationship_to_reporter: personRelationship || undefined,
+      // Build person or item details based on report type
+      let personDetails: PersonDetails | undefined
+      let itemDetails: ItemDetails | undefined
+
+      if (reportType === 'missing_child') {
+        personDetails = {
+          name: personName,
+          age: personAge ? parseInt(personAge) : undefined,
+          gender: personGender || undefined,
+          height: personHeight || undefined,
+          weight: personWeight || undefined,
+          hair_color: personHairColor || undefined,
+          eye_color: personEyeColor || undefined,
+          clothing_description: personClothing || undefined,
+          distinguishing_features: personFeatures || undefined,
+          relationship_to_reporter: personRelationship || undefined,
+        }
+      } else if (reportType === 'missing_item') {
+        itemDetails = {
+          item_type: itemType,
+          name: itemName || undefined,
+          make: itemMake || undefined,
+          model: itemModel || undefined,
+          year: itemYear ? parseInt(itemYear) : undefined,
+          color: itemColor || undefined,
+          license_plate: itemLicensePlate || undefined,
+          description: itemDescription || undefined,
+        }
       }
-    } else if (reportType === 'missing_item') {
-      itemDetails = {
-        item_type: itemType,
-        name: itemName || undefined,
-        make: itemMake || undefined,
-        model: itemModel || undefined,
-        year: itemYear ? parseInt(itemYear) : undefined,
-        color: itemColor || undefined,
-        license_plate: itemLicensePlate || undefined,
-        description: itemDescription || undefined,
+
+      const { data, error: insertError } = await supabase
+        .from('reports')
+        .insert({
+          reporter_id: userId,
+          report_type: reportType,
+          subject,
+          description: description || null,
+          person_details: personDetails || null,
+          item_details: itemDetails || null,
+          last_seen_location: lastSeenLocation || null,
+          last_seen_at: lastSeenAt ? new Date(lastSeenAt).toISOString() : null,
+          contact_name: contactName || null,
+          contact_phone: contactPhone || null,
+          contact_email: contactEmail || null,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        setError(insertError.message)
+        setLoading(false)
+        return
       }
-    }
 
-    const { data, error: insertError } = await supabase
-      .from('reports')
-      .insert({
-        reporter_id: userId,
-        report_type: reportType,
-        subject,
-        description: description || null,
-        person_details: personDetails || null,
-        item_details: itemDetails || null,
-        last_seen_location: lastSeenLocation || null,
-        last_seen_at: lastSeenAt ? new Date(lastSeenAt).toISOString() : null,
-        contact_name: contactName || null,
-        contact_phone: contactPhone || null,
-        contact_email: contactEmail || null,
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      setError(insertError.message)
+      router.push(`/reports/${data.id}`)
+      router.refresh()
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.')
       setLoading(false)
-      return
     }
-
-    router.push(`/reports/${data.id}`)
   }
 
   return (
