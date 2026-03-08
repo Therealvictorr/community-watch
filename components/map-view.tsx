@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { User, Car, AlertTriangle, Eye, MapPin, List } from 'lucide-react'
+import { User, Car, AlertTriangle, MapPin, List } from 'lucide-react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { ReportType } from '@/lib/types'
 
@@ -66,10 +66,10 @@ const bubbleStyles: Record<RiskBubble['level'], { color: string; fill: string; l
 export function MapView({ reports, sightings, user }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
-  const [selectedReport, setSelectedReport] = useState<MapReport | null>(null)
   const [showList, setShowList] = useState(false)
   const [riskBubbles, setRiskBubbles] = useState<RiskBubble[]>([])
 
+  // Load risk bubbles
   useEffect(() => {
     let mounted = true
 
@@ -88,16 +88,6 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
 
     loadBubbles()
     const timer = setInterval(loadBubbles, 30000)
-    let map: any
-
-    const initMap = async () => {
-      if (!mapRef.current || mapInstanceRef.current) return
-
-      const L = await import('leaflet')
-
-      // Initialize map centered on a default location (can be updated based on user location)
-      map = L.map(mapRef.current).setView([40.7128, -74.006], 11)
-    mapInstanceRef.current = map
 
     return () => {
       mounted = false
@@ -105,11 +95,13 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
     }
   }, [])
 
+  // Initialize and update map
   useEffect(() => {
     let map: any
 
     const initMap = async () => {
       if (!mapRef.current || mapInstanceRef.current) return
+
       const L = await import('leaflet')
 
       map = L.map(mapRef.current).setView([40.7128, -74.006], 11)
@@ -173,12 +165,6 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
       if (allPoints.length > 0) {
         map.fitBounds(L.latLngBounds(allPoints), { padding: [50, 50] })
       }
-    }
-
-    initMap()
-
-    return () => {
-      if (map) map.remove()
     }
 
     initMap()
