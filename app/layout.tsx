@@ -1,14 +1,11 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
   title: 'Community Watch - Report & Find Missing Persons and Items',
-  description: 'A community-driven platform to report missing children, vehicles, and items. Help your neighbors stay safe by reporting sightings and keeping watch together.',
+  description:
+    'A community-driven platform to report missing children, vehicles, and items. Help your neighbors stay safe by reporting sightings and keeping watch together.',
   generator: 'v0.app',
   icons: {
     icon: [
