@@ -46,6 +46,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - If Supabase env vars are missing, the app falls back to demo/mock content.
 - For a real end-to-end demo (auth + persisted reports + sightings), Supabase env vars and SQL setup must be completed.
 - You can export a report as a demo vCon JSON at `GET /api/reports/:id/vcon` (also linked in the report details page).
+- Live provider analytics bubbles are available at `GET /api/map/bubbles` and rendered on `/map` to visualize danger hotspots and missing/sighting density in near real time (30s refresh).
 - This is now suitable for a demo of a complete vCon-shaped object for each report, including report metadata, attachments, and sightings dialog entries.
 
 ## Learn More
