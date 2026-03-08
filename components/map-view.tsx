@@ -66,6 +66,7 @@ const bubbleStyles: Record<RiskBubble['level'], { color: string; fill: string; l
 export function MapView({ reports, sightings, user }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
+  const [selectedReport, setSelectedReport] = useState<MapReport | null>(null)
   const [showList, setShowList] = useState(false)
   const [riskBubbles, setRiskBubbles] = useState<RiskBubble[]>([])
 
@@ -87,6 +88,16 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
 
     loadBubbles()
     const timer = setInterval(loadBubbles, 30000)
+    let map: any
+
+    const initMap = async () => {
+      if (!mapRef.current || mapInstanceRef.current) return
+
+      const L = await import('leaflet')
+
+      // Initialize map centered on a default location (can be updated based on user location)
+      map = L.map(mapRef.current).setView([40.7128, -74.006], 11)
+    mapInstanceRef.current = map
 
     return () => {
       mounted = false
@@ -168,6 +179,14 @@ export function MapView({ reports, sightings, user }: MapViewProps) {
 
     return () => {
       if (map) map.remove()
+    }
+
+    initMap()
+
+    return () => {
+      if (map) {
+        map.remove()
+      }
       mapInstanceRef.current = null
     }
   }, [reports, sightings, riskBubbles])
