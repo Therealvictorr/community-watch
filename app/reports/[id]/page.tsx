@@ -10,6 +10,8 @@ import { mockReports, mockSightings } from '@/lib/mock-data'
 import { buildVconObject } from '@/lib/vcon'
 import { VconViewer } from '@/components/vcon-viewer'
 import { AiAnalysis } from '@/components/ai-analysis'
+import { Report, Sighting } from '@/lib/types'
+import { VconObject } from '@/lib/vcon'
 
 export default async function ReportDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -41,7 +43,19 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
     .maybeSingle()
 
   if (reportError) {
-    throw new Error('Supabase Error: ' + JSON.stringify(reportError))
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-lg text-red-500 max-w-xl">
+          <h2 className="text-xl font-bold mb-2">Supabase Query Failed</h2>
+          <pre className="whitespace-pre-wrap font-mono text-sm overflow-auto">
+            {JSON.stringify(reportError, null, 2)}
+          </pre>
+          <div className="mt-4">
+            <Link href="/" className="underline hover:text-red-400">Back to Home</Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!report) {
@@ -83,7 +97,7 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
   )
 }
 
-function ReportDetailsContent({ report, sightings, vcon }: { report: any; sightings: any[]; vcon: any }) {
+function ReportDetailsContent({ report, sightings, vcon }: { report: Report; sightings: Sighting[]; vcon: VconObject }) {
   return (
     <>
       {/* Header */}
