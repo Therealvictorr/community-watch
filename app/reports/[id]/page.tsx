@@ -36,11 +36,15 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
 
   const { data: report, error: reportError } = await supabase
     .from('reports')
-    .select('*, attachments:report_attachments(*), reporter:profiles(id, full_name)')
+    .select('*, attachments:report_attachments(*), reporter:profiles!reporter_id(id, full_name)')
     .eq('id', id)
     .maybeSingle()
 
-  if (reportError || !report) {
+  if (reportError) {
+    throw new Error('Supabase Error: ' + JSON.stringify(reportError))
+  }
+
+  if (!report) {
     const mockReport = mockReports.find((item) => item.id === id)
     if (!mockReport) notFound()
 
@@ -59,7 +63,7 @@ export default async function ReportDetailsPage({ params }: { params: Promise<{ 
 
   const { data: sightings } = await supabase
     .from('sightings')
-    .select('*, reporter:profiles(id, full_name)')
+    .select('*, reporter:profiles!reporter_id(id, full_name)')
     .eq('report_id', id)
     .order('sighted_at', { ascending: false })
 
