@@ -24,7 +24,19 @@ export const mockReports: Report[] = [
     created_at: now,
     updated_at: now,
     sighting_count: 1,
-    attachments: [],
+    attachments: [
+      {
+        id: 'demo-attachment-1',
+        report_id: 'demo-report-1',
+        type: 'image',
+        mime_type: 'image/jpeg',
+        filename: 'missing-child-photo.jpg',
+        url: 'https://picsum.photos/seed/missing-child/400/400.jpg',
+        description: 'Photo of missing child',
+        is_primary: true,
+        created_at: now
+      }
+    ],
   },
   {
     id: 'demo-report-2',
@@ -49,7 +61,19 @@ export const mockReports: Report[] = [
     created_at: now,
     updated_at: now,
     sighting_count: 0,
-    attachments: [],
+    attachments: [
+      {
+        id: 'demo-attachment-2',
+        report_id: 'demo-report-2',
+        type: 'image',
+        mime_type: 'image/jpeg',
+        filename: 'stolen-car-photo.jpg',
+        url: 'https://picsum.photos/seed/stolen-car/400/400.jpg',
+        description: 'Photo of stolen vehicle',
+        is_primary: true,
+        created_at: now
+      }
+    ],
   },
 ]
 

@@ -61,8 +61,7 @@ export function AiAnalysis({ reportId }: AiAnalysisProps) {
               <Sparkles className="h-5 w-5 text-purple-400" />
             </div>
             <div>
-              <CardTitle className="text-base text-white">AI Incident Analysis</CardTitle>
-              <p className="text-xs text-gray-500 mt-0.5">Powered by Groq · Llama 3.1</p>
+              <CardTitle className="text-base text-white">Incident Analysis</CardTitle>
             </div>
           </div>
           {result && urgency && (

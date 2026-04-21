@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { User, Car, AlertTriangle, AlertCircle, MapPin } from 'lucide-react'
+import { User, Car, AlertTriangle, AlertCircle, MapPin, Upload, X, Image as ImageIcon } from 'lucide-react'
 import type { ReportType, PersonDetails, ItemDetails } from '@/lib/types'
 
 interface ReportFormProps {
@@ -48,6 +48,73 @@ export function ReportForm({ userId }: ReportFormProps) {
   const [personWeight, setPersonWeight] = useState('')
   const [personHairColor, setPersonHairColor] = useState('')
   const [personEyeColor, setPersonEyeColor] = useState('')
+  
+  // Photo upload
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [dragActive, setDragActive] = useState(false)
+
+  // Photo upload functions
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return
+    
+    const newFiles = Array.from(files).filter(file => {
+      if (file.type.startsWith('image/')) {
+        return file.size <= 5 * 1024 * 1024 // 5MB limit
+      }
+      return false
+    })
+    
+    if (newFiles.length === 0) {
+      setError('Please select image files under 5MB each')
+      return
+    }
+    
+    const totalFiles = selectedFiles.length + newFiles.length
+    if (totalFiles > 5) {
+      setError('Maximum 5 images allowed')
+      return
+    }
+    
+    const updatedFiles = [...selectedFiles, ...newFiles]
+    setSelectedFiles(updatedFiles)
+    
+    // Create previews for new files
+    newFiles.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreviews(prev => [...prev, e.target?.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+    
+    setError(null)
+  }
+
+  const removeFile = (index: number) => {
+    const newFiles = selectedFiles.filter((_, i) => i !== index)
+    const newPreviews = imagePreviews.filter((_, i) => i !== index)
+    setSelectedFiles(newFiles)
+    setImagePreviews(newPreviews)
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    handleFileSelect(e.dataTransfer.files)
+  }
   const [personClothing, setPersonClothing] = useState('')
   const [personFeatures, setPersonFeatures] = useState('')
   const [personRelationship, setPersonRelationship] = useState('')
@@ -105,7 +172,8 @@ export function ReportForm({ userId }: ReportFormProps) {
         }
       }
 
-      const { data, error: insertError } = await supabase
+      // First create the report
+      const { data: reportData, error: insertError } = await supabase
         .from('reports')
         .insert({
           reporter_id: userId,
@@ -129,7 +197,53 @@ export function ReportForm({ userId }: ReportFormProps) {
         return
       }
 
-      router.push(`/reports/${data.id}`)
+      // Upload photos if any
+      if (selectedFiles.length > 0) {
+        const attachmentPromises = selectedFiles.map(async (file, index) => {
+          const fileName = `${reportData.id}/${Date.now()}-${index}-${file.name}`
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('report-images')
+            .upload(fileName, file)
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError)
+            return null
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from('report-images')
+            .getPublicUrl(fileName)
+
+          return {
+            report_id: reportData.id,
+            filename: file.name,
+            url: publicUrlData.publicUrl,
+            mime_type: file.type,
+            type: 'image',
+            is_primary: index === 0
+          }
+        })
+
+        try {
+          const attachments = await Promise.all(attachmentPromises)
+          const validAttachments = attachments.filter(att => att !== null)
+
+          if (validAttachments.length > 0) {
+            const { error: insertDbError } = await supabase
+              .from('report_attachments')
+              .insert(validAttachments)
+              
+            if (insertDbError) {
+              console.error('Error inserting attachments into DB:', insertDbError)
+            }
+          }
+        } catch (uploadErr) {
+          console.error('Error in attachment flow:', uploadErr)
+          // Don't fail the whole report if photos fail to upload
+        }
+      }
+
+      router.push(`/reports/${reportData.id}`)
       router.refresh()
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
@@ -468,6 +582,103 @@ export function ReportForm({ userId }: ReportFormProps) {
               />
             </Field>
           </FieldGroup>
+        </CardContent>
+      </Card>
+
+      {/* Photo Upload Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Photos
+          </CardTitle>
+          <CardDescription>
+            Add up to 5 photos (max 5MB each) to help identify the person or item
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Upload Area */}
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                dragActive
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <div className="space-y-2">
+                <p className="text-lg font-medium text-gray-900">
+                  {dragActive ? 'Drop photos here' : 'Drag and drop photos here'}
+                </p>
+                <p className="text-sm text-gray-500">or</p>
+                <div className="flex justify-center">
+                  <label className="cursor-pointer">
+                    <span className="sr-only">Choose photos</span>
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => handleFileSelect(e.target.files)}
+                    />
+                    <Button type="button" variant="outline">
+                      Choose Photos
+                    </Button>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  PNG, JPG, GIF up to 5MB each (max 5 photos)
+                </p>
+              </div>
+            </div>
+
+            {/* Image Previews */}
+            {imagePreviews.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-900">
+                    Selected Photos ({selectedFiles.length}/5)
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Total size: {(selectedFiles.reduce((acc, file) => acc + file.size, 0) / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeFile(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2">
+                        <p className="text-xs truncate">
+                          {selectedFiles[index].name}
+                        </p>
+                        <p className="text-xs opacity-75">
+                          {(selectedFiles[index].size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

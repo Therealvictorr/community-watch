@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "community-watch",
+    "governance", 
+    "identity"
+]
+resolver = "2"
+
+[workspace.dependencies]
+cosmwasm-std = "1.5.0"
+cosmwasm-storage = "1.5.0"
+cosmwasm-schema = "1.5.0"
+schemars = "0.8.15"
+serde = { version = "1.0.193", default-features = false, features = ["derive"] }
+thiserror = "1.0.50"
