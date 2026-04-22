@@ -23,49 +23,61 @@ export async function DELETE(
 
     console.log('User authenticated:', user.id)
 
-    // Get report to check ownership - try multiple field names
-    let report;
-    let reportError;
+    // Get report to check ownership - use comprehensive query
+    console.log('Querying report with ID:', params.id)
     
-    // Try with reporter_id first
-    const result1 = await supabase
+    const { data: report, error: reportError } = await supabase
       .from('reports')
-      .select('reporter_id, subject')
+      .select('*')
       .eq('id', params.id)
       .single();
-    
-    if (result1.data) {
-      report = result1.data;
-      reportError = result1.error;
-    } else {
-      // Try with just basic fields to see what exists
-      const result2 = await supabase
-        .from('reports')
-        .select('*')
-        .eq('id', params.id)
-        .single();
-      
-      report = result2.data;
-      reportError = result2.error;
+
+    if (reportError) {
+      console.error('Database query error:', {
+        error: reportError,
+        code: reportError.code,
+        details: reportError.details,
+        hint: reportError.hint,
+        message: reportError.message
+      })
+      return NextResponse.json(
+        { error: `Database error: ${reportError.message}` },
+        { status: 500 }
+      )
     }
 
-    if (reportError || !report) {
-      console.error('Report not found:', { params, reportError, reportData: report })
+    if (!report) {
+      console.error('Report not found in database:', { 
+        searchedId: params.id,
+        error: reportError 
+      })
+      
+      // Let's check if any reports exist at all
+      const { data: allReports, error: allReportsError } = await supabase
+        .from('reports')
+        .select('id, subject')
+        .limit(5);
+        
+      console.log('Sample reports in database:', allReports?.slice(0, 3));
+      
       return NextResponse.json(
-        { error: 'Report not found' },
+        { error: 'Report not found in database' },
         { status: 404 }
       )
     }
 
     console.log('Report found:', { 
       reportId: params.id, 
-      reporterId: report.reporter_id, 
       subject: report.subject,
-      allFields: Object.keys(report)
+      allFields: Object.keys(report),
+      hasReporterId: !!report.reporter_id,
+      hasUserId: !!report.user_id,
+      reporterId: report.reporter_id,
+      userId: report.user_id
     })
 
     // Check if user is the report creator or admin
-    const reporterId = report.reporter_id || report.user_id; // Handle both possible field names
+    const reporterId = report.reporter_id || report.user_id || report.reporter?.id; // Handle multiple field name possibilities
     const canDelete = reporterId === user.id || user.user_metadata?.role === 'admin'
     
     if (!canDelete) {
