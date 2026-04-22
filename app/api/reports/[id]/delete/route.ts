@@ -78,10 +78,37 @@ export async function DELETE(
 
     // Check if user is the report creator or admin
     const reporterId = report.reporter_id || report.user_id || report.reporter?.id; // Handle multiple field name possibilities
-    const canDelete = reporterId === user.id || user.user_metadata?.role === 'admin'
+    
+    console.log('Permission check:', {
+      userId: user.id,
+      reporterId: reporterId,
+      reportReporterId: report.reporter_id,
+      reportUserId: report.user_id,
+      reportReporterIdNested: report.reporter?.id,
+      isAdmin: user.user_metadata?.role === 'admin'
+    })
+    
+    // Check if we have a valid reporter ID
+    if (!reporterId && user.user_metadata?.role !== 'admin') {
+      console.error('No reporter ID found and user is not admin:', { 
+        userId: user.id, 
+        reportFields: Object.keys(report),
+        reportData: report 
+      })
+      return NextResponse.json(
+        { error: 'Unable to determine report ownership. This report may not have a valid creator.' },
+        { status: 403 }
+      )
+    }
+    
+    const canDelete = (reporterId && reporterId === user.id) || user.user_metadata?.role === 'admin'
     
     if (!canDelete) {
-      console.error('Permission denied:', { userId: user.id, reporterId: report.reporter_id })
+      console.error('Permission denied:', { 
+        userId: user.id, 
+        reporterId: reporterId,
+        isAdmin: user.user_metadata?.role === 'admin'
+      })
       return NextResponse.json(
         { error: 'Permission denied. Only report creator can delete this report.' },
         { status: 403 }
@@ -90,14 +117,21 @@ export async function DELETE(
 
     // Delete related sightings first (if any exist)
     console.log('Deleting sightings for report:', params.id)
-    const { error: sightingsError } = await supabase
-      .from('sightings')
-      .delete()
-      .eq('report_id', params.id)
+    try {
+      const { error: sightingsError } = await supabase
+        .from('sightings')
+        .delete()
+        .eq('report_id', params.id)
 
-    // Don't fail if sightings deletion fails, just log it
-    if (sightingsError) {
-      console.warn('Warning: Could not delete sightings:', sightingsError)
+      // Don't fail if sightings deletion fails, just log it
+      if (sightingsError) {
+        console.warn('Warning: Could not delete sightings:', sightingsError)
+        // Continue with report deletion anyway
+      } else {
+        console.log('Sightings deleted successfully')
+      }
+    } catch (sightingsError) {
+      console.warn('Exception when deleting sightings:', sightingsError)
       // Continue with report deletion anyway
     }
 
