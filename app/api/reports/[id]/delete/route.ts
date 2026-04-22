@@ -4,18 +4,21 @@ import { cookies } from 'next/headers'
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // In Next.js App Router, params is a Promise
+    const resolvedParams = await params;
+    
     // Debug the params object
-    console.log('Full params object:', params)
-    console.log('params.id type:', typeof params.id)
-    console.log('params.id value:', params.id)
-    console.log('params.id === undefined:', params.id === undefined)
-    console.log('params.id === "undefined":', params.id === 'undefined')
+    console.log('Full params object:', resolvedParams)
+    console.log('params.id type:', typeof resolvedParams.id)
+    console.log('params.id value:', resolvedParams.id)
+    console.log('params.id === undefined:', resolvedParams.id === undefined)
+    console.log('params.id === "undefined":', resolvedParams.id === 'undefined')
     
     // Validate UUID parameter
-    const reportId = params.id;
+    const reportId = resolvedParams.id;
     console.log('Starting delete operation for report:', reportId)
     
     if (!reportId || reportId === 'undefined') {
