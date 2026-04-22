@@ -151,11 +151,20 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation, current
     if (!reportToDelete) return;
     
     console.log('Starting delete confirmation for report:', reportToDelete);
+    console.log('Report ID type:', typeof reportToDelete.id);
+    console.log('Report ID value:', reportToDelete.id);
+    console.log('Report ID === undefined:', reportToDelete.id === undefined);
+    console.log('Report ID === "undefined":', reportToDelete.id === 'undefined');
+    console.log('Full report object:', reportToDelete);
+    
+    const deleteUrl = `/api/reports/${reportToDelete.id}/delete`;
+    console.log('Delete URL:', deleteUrl);
+    
     setIsDeleting(true);
     setDeleteError(null);
     
     try {
-      const response = await fetch(`/api/reports/${reportToDelete.id}/delete`, {
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
       });
       

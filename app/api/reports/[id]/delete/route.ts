@@ -7,12 +7,19 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Debug the params object
+    console.log('Full params object:', params)
+    console.log('params.id type:', typeof params.id)
+    console.log('params.id value:', params.id)
+    console.log('params.id === undefined:', params.id === undefined)
+    console.log('params.id === "undefined":', params.id === 'undefined')
+    
     // Validate UUID parameter
     const reportId = params.id;
     console.log('Starting delete operation for report:', reportId)
     
     if (!reportId || reportId === 'undefined') {
-      console.error('Invalid report ID:', reportId)
+      console.error('Invalid report ID:', reportId, 'Type:', typeof reportId)
       return NextResponse.json(
         { error: 'Invalid report ID provided' },
         { status: 400 }
