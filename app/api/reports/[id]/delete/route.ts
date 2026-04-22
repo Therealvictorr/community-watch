@@ -7,57 +7,65 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    console.log('Starting delete operation for report:', params.id)
+    const supabase = await createClient()
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.error('Authentication failed:', authError)
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
+    console.log('User authenticated:', user.id)
+
     // Get the report to check ownership
     const { data: report, error: reportError } = await supabase
       .from('reports')
-      .select('reporter_id')
+      .select('reporter_id, subject')
       .eq('id', params.id)
       .single()
 
     if (reportError || !report) {
+      console.error('Report not found:', { params, reportError })
       return NextResponse.json(
         { error: 'Report not found' },
         { status: 404 }
       )
     }
 
+    console.log('Report found:', { reportId: params.id, reporterId: report.reporter_id, subject: report.subject })
+
     // Check if user is the report creator or admin
     const canDelete = report.reporter_id === user.id || user.user_metadata?.role === 'admin'
     
     if (!canDelete) {
+      console.error('Permission denied:', { userId: user.id, reporterId: report.reporter_id })
       return NextResponse.json(
         { error: 'Permission denied. Only report creator can delete this report.' },
         { status: 403 }
       )
     }
 
-    // Delete related sightings first (foreign key constraint)
+    // Delete related sightings first (if any exist)
+    console.log('Deleting sightings for report:', params.id)
     const { error: sightingsError } = await supabase
       .from('sightings')
       .delete()
       .eq('report_id', params.id)
 
+    // Don't fail if sightings deletion fails, just log it
     if (sightingsError) {
-      console.error('Error deleting sightings:', sightingsError)
-      return NextResponse.json(
-        { error: 'Failed to delete related sightings' },
-        { status: 500 }
-      )
+      console.warn('Warning: Could not delete sightings:', sightingsError)
+      // Continue with report deletion anyway
     }
 
     // Delete the report
+    console.log('Deleting report:', params.id)
     const { error: deleteError } = await supabase
       .from('reports')
       .delete()
@@ -66,11 +74,12 @@ export async function DELETE(
     if (deleteError) {
       console.error('Error deleting report:', deleteError)
       return NextResponse.json(
-        { error: 'Failed to delete report' },
+        { error: `Failed to delete report: ${deleteError.message}` },
         { status: 500 }
       )
     }
 
+    console.log('Successfully deleted report:', params.id)
     return NextResponse.json(
       { message: 'Report deleted successfully' },
       { status: 200 }
@@ -79,7 +88,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Delete report error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

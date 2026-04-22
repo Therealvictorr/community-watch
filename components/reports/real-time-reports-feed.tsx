@@ -568,10 +568,10 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation, current
                       size="sm" 
                       variant="destructive"
                       onClick={() => handleDeleteReport(report)}
-                      className="min-w-[100px]"
+                      className="w-9 h-9 p-0 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 shadow-red-200 hover:shadow-red-300 transition-all duration-200 hover:scale-105"
+                      title="Delete Report (Dangerous Action)"
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                   
