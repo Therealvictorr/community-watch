@@ -5,7 +5,7 @@ import { ProposalForm } from '@/components/governance/proposal-form'
 import { ProposalList } from '@/components/governance/proposal-list'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { XionWalletConnect } from '@/components/ui/xion-wallet-connect'
-import { Balance, Users, Vote } from 'lucide-react'
+import { Scale, Users, Vote } from 'lucide-react'
 
 export default async function GovernancePage() {
   const supabase = await createClient()
@@ -36,7 +36,7 @@ export default async function GovernancePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card p-6 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Balance className="h-5 w-5 text-blue-600" />
+                <Scale className="h-5 w-5 text-blue-600" />
                 <h3 className="font-semibold">Active Proposals</h3>
               </div>
               <p className="text-2xl font-bold text-blue-600 mt-2">3</p>
