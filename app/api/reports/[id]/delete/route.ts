@@ -7,7 +7,28 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('Starting delete operation for report:', params.id)
+    // Validate UUID parameter
+    const reportId = params.id;
+    console.log('Starting delete operation for report:', reportId)
+    
+    if (!reportId || reportId === 'undefined') {
+      console.error('Invalid report ID:', reportId)
+      return NextResponse.json(
+        { error: 'Invalid report ID provided' },
+        { status: 400 }
+      )
+    }
+    
+    // Simple UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(reportId)) {
+      console.error('Invalid UUID format:', reportId)
+      return NextResponse.json(
+        { error: 'Invalid report ID format' },
+        { status: 400 }
+      )
+    }
+    
     const supabase = await createClient()
     
     // Get current user
@@ -24,12 +45,12 @@ export async function DELETE(
     console.log('User authenticated:', user.id)
 
     // Get report to check ownership - use comprehensive query
-    console.log('Querying report with ID:', params.id)
+    console.log('Querying report with ID:', reportId)
     
     const { data: report, error: reportError } = await supabase
       .from('reports')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', reportId)
       .single();
 
     if (reportError) {
@@ -48,7 +69,7 @@ export async function DELETE(
 
     if (!report) {
       console.error('Report not found in database:', { 
-        searchedId: params.id,
+        searchedId: reportId,
         error: reportError 
       })
       
@@ -67,7 +88,7 @@ export async function DELETE(
     }
 
     console.log('Report found:', { 
-      reportId: params.id, 
+      reportId: reportId, 
       subject: report.subject,
       allFields: Object.keys(report),
       hasReporterId: !!report.reporter_id,
@@ -116,12 +137,12 @@ export async function DELETE(
     }
 
     // Delete related sightings first (if any exist)
-    console.log('Deleting sightings for report:', params.id)
+    console.log('Deleting sightings for report:', reportId)
     try {
       const { error: sightingsError } = await supabase
         .from('sightings')
         .delete()
-        .eq('report_id', params.id)
+        .eq('report_id', reportId)
 
       // Don't fail if sightings deletion fails, just log it
       if (sightingsError) {
@@ -136,11 +157,11 @@ export async function DELETE(
     }
 
     // Delete the report
-    console.log('Deleting report:', params.id)
+    console.log('Deleting report:', reportId)
     const { error: deleteError } = await supabase
       .from('reports')
       .delete()
-      .eq('id', params.id)
+      .eq('id', reportId)
 
     if (deleteError) {
       console.error('Error deleting report:', deleteError)
@@ -150,7 +171,7 @@ export async function DELETE(
       )
     }
 
-    console.log('Successfully deleted report:', params.id)
+    console.log('Successfully deleted report:', reportId)
     return NextResponse.json(
       { message: 'Report deleted successfully' },
       { status: 200 }
