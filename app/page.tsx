@@ -6,6 +6,7 @@ import { CommunityAssistant } from '@/components/ai/community-assistant'
 import { InteractiveMap } from '@/components/map/interactive-map'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { mockReports } from '@/lib/mock-data'
+import type { Report } from '@/lib/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Camera, Eye } from 'lucide-react'
@@ -30,14 +31,21 @@ export default async function HomePage() {
               <HeroSection user={null} />
               <RealTimeReportsFeed 
                 initialReports={mockReports}
-                userLocation={undefined} />
+                userLocation={undefined}
+                currentUserId={null}
+              />
             </TabsContent>
             
             <TabsContent value="map" className="mt-4">
-              <InteractiveMap reports={reportsWithCounts || []} />
+              <InteractiveMap reports={[]} />
             </TabsContent>
             
             <TabsContent value="ai" className="mt-4">
+              <CommunityAssistant 
+              reports={reportsWithCounts || []} 
+              userLocation={userLocation}
+              currentUserId={user?.id}
+            />
               <CommunityAssistant reports={reportsWithCounts || []} />
             </TabsContent>
             
@@ -83,7 +91,7 @@ export default async function HomePage() {
     console.error('Homepage reports query error:', reportsError)
   }
 
-  const reportsWithCounts = reports?.map((report) => ({
+  const reportsWithCounts: Report[] = reports?.map((report) => ({
     ...report,
     sighting_count: report.sightings?.[0]?.count || 0,
     // Add mock progress data for demonstration
@@ -116,6 +124,7 @@ export default async function HomePage() {
             <RealTimeReportsFeed 
               initialReports={reportsWithCounts || []} 
               userLocation={userLocation}
+              currentUserId={user?.id}
             />
           </TabsContent>
           

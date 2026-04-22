@@ -27,18 +27,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from '@/lib/supabase/client';
+import { DeleteConfirmationDialog } from '@/components/ui/delete-confirmation-dialog';
+import { Trash2 } from 'lucide-react';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 interface Report {
   id: string;
   subject: string;
-  description: string;
+  description: string | undefined;
   report_type: string;
   last_seen_location: string;
   last_seen_at: string;
   created_at: string;
   status: string;
   sighting_count: number;
-  reporter: {
+  reporter_id?: string;
+  reporter?: {
+    id: string;
     full_name: string;
     avatar_url: string;
   };
@@ -60,9 +65,10 @@ interface Report {
 interface RealTimeReportsFeedProps {
   initialReports: Report[];
   userLocation?: { lat: number; lng: number };
+  currentUserId?: string | null;
 }
 
-export function RealTimeReportsFeed({ initialReports = [], userLocation }: RealTimeReportsFeedProps) {
+export function RealTimeReportsFeed({ initialReports = [], userLocation, currentUserId }: RealTimeReportsFeedProps) {
   const router = useRouter();
   const [reports, setReports] = useState<Report[]>(initialReports || []);
   const [filteredReports, setFilteredReports] = useState<Report[]>(initialReports || []);
@@ -71,6 +77,12 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation }: RealT
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -129,6 +141,50 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation }: RealT
   }, []);
 
   // Manual refresh function
+  const handleDeleteReport = async (report: Report) => {
+    setReportToDelete(report);
+    setDeleteError(null);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!reportToDelete) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      const response = await fetch(`/api/reports/${reportToDelete.id}/delete`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove report from local state
+        setReports(prev => prev.filter(r => r.id !== reportToDelete.id));
+        setFilteredReports(prev => prev.filter(r => r.id !== reportToDelete.id));
+        setDeleteDialogOpen(false);
+        setReportToDelete(null);
+      } else {
+        const errorData = await response.json();
+        setDeleteError(errorData.error || 'Failed to delete report');
+      }
+    } catch (error) {
+      setDeleteError('An unexpected error occurred');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setReportToDelete(null);
+    setDeleteError(null);
+  };
+
+  const canDeleteReport = (report: Report) => {
+    return currentUserId && (report.reporter?.id === currentUserId || report.reporter_id === currentUserId);
+  };
+
   const refreshReports = async () => {
     console.log('Manual refresh triggered...');
     setLoading(true);
@@ -505,6 +561,20 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation }: RealT
                       View Details
                     </Link>
                   </Button>
+                  
+                  {/* Delete Button - Only show for report creator */}
+                  {canDeleteReport(report) && (
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => handleDeleteReport(report)}
+                      className="min-w-[100px]"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  )}
+                  
                   <Button 
                     size="sm" 
                     variant="outline"
@@ -538,6 +608,18 @@ export function RealTimeReportsFeed({ initialReports = [], userLocation }: RealT
           </CardContent>
         </Card>
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        title={reportToDelete?.subject || 'Report'}
+        description={`Are you sure you want to delete "${reportToDelete?.subject || 'this report'}"? This action cannot be undone and will also delete all related sightings.`}
+        isDeleting={isDeleting}
+        error={deleteError}
+      />
     </div>
   );
 }
