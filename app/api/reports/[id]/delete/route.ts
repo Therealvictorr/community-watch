@@ -23,25 +23,50 @@ export async function DELETE(
 
     console.log('User authenticated:', user.id)
 
-    // Get the report to check ownership
-    const { data: report, error: reportError } = await supabase
+    // Get report to check ownership - try multiple field names
+    let report;
+    let reportError;
+    
+    // Try with reporter_id first
+    const result1 = await supabase
       .from('reports')
       .select('reporter_id, subject')
       .eq('id', params.id)
-      .single()
+      .single();
+    
+    if (result1.data) {
+      report = result1.data;
+      reportError = result1.error;
+    } else {
+      // Try with just basic fields to see what exists
+      const result2 = await supabase
+        .from('reports')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+      
+      report = result2.data;
+      reportError = result2.error;
+    }
 
     if (reportError || !report) {
-      console.error('Report not found:', { params, reportError })
+      console.error('Report not found:', { params, reportError, reportData: report })
       return NextResponse.json(
         { error: 'Report not found' },
         { status: 404 }
       )
     }
 
-    console.log('Report found:', { reportId: params.id, reporterId: report.reporter_id, subject: report.subject })
+    console.log('Report found:', { 
+      reportId: params.id, 
+      reporterId: report.reporter_id, 
+      subject: report.subject,
+      allFields: Object.keys(report)
+    })
 
     // Check if user is the report creator or admin
-    const canDelete = report.reporter_id === user.id || user.user_metadata?.role === 'admin'
+    const reporterId = report.reporter_id || report.user_id; // Handle both possible field names
+    const canDelete = reporterId === user.id || user.user_metadata?.role === 'admin'
     
     if (!canDelete) {
       console.error('Permission denied:', { userId: user.id, reporterId: report.reporter_id })
